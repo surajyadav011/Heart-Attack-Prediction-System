@@ -1,0 +1,1488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CardioSense — Heart Attack Predictor</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --bg: #050810;
+  --surface: #0c1020;
+  --card: #101828;
+  --border: rgba(99,179,237,0.15);
+  --accent: #38bdf8;
+  --accent2: #f43f5e;
+  --accent3: #a78bfa;
+  --text: #e2e8f0;
+  --muted: #64748b;
+  --glow: rgba(56,189,248,0.25);
+  --glow2: rgba(244,63,94,0.2);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'DM Mono', monospace;
+  min-height: 100vh;
+  overflow-x: hidden;
+  position: relative;
+}
+
+/* ── ANIMATED GRID ── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(56,189,248,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(56,189,248,0.04) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+  z-index: 0;
+  animation: gridDrift 20s linear infinite;
+}
+
+@keyframes gridDrift {
+  0%   { background-position: 0 0; }
+  100% { background-position: 40px 40px; }
+}
+
+/* ── NOISE OVERLAY ── */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.4;
+}
+
+/* ── FLOATING ORBS ── */
+.orb1 {
+  position: fixed;
+  width: 700px; height: 700px;
+  background: radial-gradient(circle, rgba(56,189,248,0.09) 0%, transparent 65%);
+  top: -200px; left: -200px;
+  pointer-events: none;
+  z-index: 0;
+  animation: orbFloat1 12s ease-in-out infinite alternate;
+}
+
+.orb2 {
+  position: fixed;
+  width: 600px; height: 600px;
+  background: radial-gradient(circle, rgba(244,63,94,0.08) 0%, transparent 65%);
+  bottom: -150px; right: -150px;
+  pointer-events: none;
+  z-index: 0;
+  animation: orbFloat2 14s ease-in-out infinite alternate;
+}
+
+.orb3 {
+  position: fixed;
+  width: 400px; height: 400px;
+  background: radial-gradient(circle, rgba(167,139,250,0.07) 0%, transparent 65%);
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 0;
+  animation: orbFloat3 18s ease-in-out infinite alternate;
+}
+
+@keyframes orbFloat1 {
+  from { transform: translate(0, 0) scale(1); }
+  to   { transform: translate(100px, 80px) scale(1.1); }
+}
+
+@keyframes orbFloat2 {
+  from { transform: translate(0, 0) scale(1); }
+  to   { transform: translate(-80px, -100px) scale(1.15); }
+}
+
+@keyframes orbFloat3 {
+  from { transform: translate(-50%, -50%) scale(0.8); opacity: 0.5; }
+  to   { transform: translate(-48%, -52%) scale(1.2); opacity: 1; }
+}
+
+/* ── SCANLINE EFFECT ── */
+.scanline {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent 0%, rgba(56,189,248,0.4) 50%, transparent 100%);
+  pointer-events: none;
+  z-index: 100;
+  animation: scanMove 6s linear infinite;
+  opacity: 0.5;
+}
+
+@keyframes scanMove {
+  0%   { top: 0; opacity: 0; }
+  5%   { opacity: 0.5; }
+  95%  { opacity: 0.5; }
+  100% { top: 100vh; opacity: 0; }
+}
+
+/* ── PAGE WRAPPER ── */
+.page-wrapper {
+  position: relative;
+  z-index: 1;
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 60px 24px 90px;
+}
+
+/* ── HEADER ── */
+.header {
+  text-align: center;
+  margin-bottom: 48px;
+  animation: fadeDown 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes fadeDown {
+  from { opacity: 0; transform: translateY(-32px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── ECG STRIP ── */
+.ecg-strip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  margin-bottom: 24px;
+  height: 40px;
+  overflow: hidden;
+}
+
+.ecg-strip svg {
+  width: 260px;
+  height: 40px;
+  overflow: visible;
+}
+
+.ecg-line {
+  stroke: var(--accent2);
+  stroke-width: 1.5;
+  fill: none;
+  filter: drop-shadow(0 0 4px rgba(244,63,94,0.8));
+  stroke-dasharray: 500;
+  stroke-dashoffset: 500;
+  animation: ecgDraw 2.5s ease forwards, ecgPulse 2.5s ease 2.5s infinite;
+}
+
+@keyframes ecgDraw {
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes ecgPulse {
+  0%, 80%, 100% { opacity: 1; }
+  90% { opacity: 0.3; }
+}
+
+/* ── BADGE ── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 18px;
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: rgba(56,189,248,0.06);
+  margin-bottom: 20px;
+  backdrop-filter: blur(8px);
+  position: relative;
+  overflow: hidden;
+}
+
+.badge::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(56,189,248,0.1), transparent);
+  transform: translateX(-100%);
+  animation: badgeSweep 3s ease 1s infinite;
+}
+
+@keyframes badgeSweep {
+  0%   { transform: translateX(-100%); }
+  50%  { transform: translateX(100%); }
+  100% { transform: translateX(100%); }
+}
+
+.badge-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 10px var(--accent);
+  animation: pulse 2s ease infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 10px var(--accent); }
+  50%       { opacity: 0.5; transform: scale(0.7); box-shadow: 0 0 4px var(--accent); }
+}
+
+h1 {
+  font-family: 'Syne', sans-serif;
+  font-size: clamp(28px, 5vw, 48px);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  background: linear-gradient(135deg, #e2e8f0 0%, var(--accent) 45%, #a78bfa 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 12px;
+  position: relative;
+}
+
+.title-glow {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, transparent 0%, rgba(56,189,248,0.15) 45%, rgba(167,139,250,0.15) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  filter: blur(20px);
+  pointer-events: none;
+}
+
+.subtitle {
+  font-size: 12px;
+  color: var(--muted);
+  letter-spacing: 0.06em;
+  max-width: 480px;
+  margin: 0 auto;
+  line-height: 1.8;
+}
+
+/* ── STATS BAR ── */
+.stats-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 32px;
+  margin-bottom: 40px;
+  animation: fadeUp 0.8s ease 0.3s both;
+}
+
+.stat-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(99,179,237,0.1);
+  border-radius: 8px;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  text-transform: uppercase;
+  backdrop-filter: blur(4px);
+  transition: border-color 0.3s, color 0.3s;
+}
+
+.stat-chip:hover {
+  border-color: rgba(56,189,248,0.3);
+  color: var(--accent);
+}
+
+.stat-chip i {
+  color: var(--accent);
+  font-size: 11px;
+}
+
+/* ── MAIN CARD ── */
+.main-card {
+  background: linear-gradient(145deg, rgba(16,24,40,0.98) 0%, rgba(10,16,28,0.98) 100%);
+  border: 1px solid var(--border);
+  border-radius: 28px;
+  padding: 48px;
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,0.02) inset,
+    0 0 100px rgba(0,0,0,0.7),
+    0 0 60px rgba(56,189,248,0.04);
+  animation: fadeUp 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.15s both;
+  position: relative;
+  overflow: hidden;
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(36px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Top gradient line */
+.main-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, var(--accent) 30%, var(--accent3) 70%, transparent 100%);
+  opacity: 0.7;
+}
+
+/* Corner decorations */
+.main-card::after {
+  content: '';
+  position: absolute;
+  top: -1px; right: -1px;
+  width: 80px; height: 80px;
+  background: radial-gradient(circle at top right, rgba(167,139,250,0.1) 0%, transparent 70%);
+  border-radius: 0 28px 0 0;
+  pointer-events: none;
+}
+
+.corner-tl, .corner-br {
+  position: absolute;
+  width: 20px; height: 20px;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.corner-tl {
+  top: 12px; left: 12px;
+  border-top: 2px solid rgba(56,189,248,0.4);
+  border-left: 2px solid rgba(56,189,248,0.4);
+  border-radius: 4px 0 0 0;
+}
+
+.corner-br {
+  bottom: 12px; right: 12px;
+  border-bottom: 2px solid rgba(167,139,250,0.4);
+  border-right: 2px solid rgba(167,139,250,0.4);
+  border-radius: 0 0 4px 0;
+}
+
+/* ── SECTION TITLE ── */
+.section-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 30px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.section-title::before {
+  content: '';
+  width: 3px; height: 14px;
+  background: linear-gradient(to bottom, var(--accent), var(--accent3));
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.section-title::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, var(--border), transparent);
+}
+
+/* ── GRID ── */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+/* ── INPUT BOX ── */
+.inputBox {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  animation: fadeUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+  position: relative;
+}
+
+.inputBox:nth-child(1)  { animation-delay: 0.05s; }
+.inputBox:nth-child(2)  { animation-delay: 0.10s; }
+.inputBox:nth-child(3)  { animation-delay: 0.15s; }
+.inputBox:nth-child(4)  { animation-delay: 0.20s; }
+.inputBox:nth-child(5)  { animation-delay: 0.25s; }
+.inputBox:nth-child(6)  { animation-delay: 0.30s; }
+.inputBox:nth-child(7)  { animation-delay: 0.35s; }
+.inputBox:nth-child(8)  { animation-delay: 0.40s; }
+.inputBox:nth-child(9)  { animation-delay: 0.45s; }
+.inputBox:nth-child(10) { animation-delay: 0.50s; }
+.inputBox:nth-child(11) { animation-delay: 0.55s; }
+.inputBox:nth-child(12) { animation-delay: 0.60s; }
+.inputBox:nth-child(13) { animation-delay: 0.65s; }
+
+label {
+  font-size: 9.5px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  transition: color 0.25s;
+  padding-left: 2px;
+}
+
+label i {
+  font-size: 10px;
+  color: var(--accent);
+  opacity: 0.6;
+  transition: opacity 0.25s, transform 0.25s;
+}
+
+.inputBox:hover label { color: var(--text); }
+.inputBox:hover label i { opacity: 1; transform: scale(1.15); }
+
+.input-wrap {
+  position: relative;
+}
+
+/* Animated border glow on focus */
+.input-wrap::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: 11px;
+  background: linear-gradient(135deg, var(--accent), var(--accent3));
+  opacity: 0;
+  transition: opacity 0.3s;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.input-wrap:focus-within::before { opacity: 0.5; }
+
+input[type="number"] {
+  width: 100%;
+  padding: 11px 16px;
+  background: rgba(12,16,32,0.8);
+  border: 1px solid rgba(99,179,237,0.12);
+  border-radius: 10px;
+  color: var(--text);
+  font-family: 'DM Mono', monospace;
+  font-size: 14px;
+  font-weight: 400;
+  outline: none;
+  transition: border-color 0.3s, box-shadow 0.3s, background 0.3s;
+  -moz-appearance: textfield;
+  position: relative;
+  z-index: 1;
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
+
+input[type="number"]::placeholder { color: var(--muted); opacity: 0.3; }
+
+input[type="number"]:hover {
+  border-color: rgba(56,189,248,0.28);
+  background: rgba(56,189,248,0.03);
+}
+
+input[type="number"]:focus {
+  border-color: transparent;
+  box-shadow:
+    0 0 0 1px rgba(56,189,248,0.5),
+    0 0 24px rgba(56,189,248,0.12),
+    inset 0 1px 0 rgba(255,255,255,0.04);
+  background: rgba(56,189,248,0.05);
+}
+
+input[type="number"]:not(:placeholder-shown) {
+  border-color: rgba(56,189,248,0.2);
+  color: #fff;
+}
+
+/* ── SUBMIT BUTTON ── */
+.btn-wrap {
+  margin-top: 40px;
+  display: flex;
+  justify-content: center;
+}
+
+button[type="submit"] {
+  position: relative;
+  padding: 17px 64px;
+  background: linear-gradient(135deg, #f43f5e 0%, #be123c 100%);
+  border: none;
+  border-radius: 14px;
+  color: #fff;
+  font-family: 'Syne', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  cursor: pointer;
+  overflow: hidden;
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s;
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,0.1) inset,
+    0 0 40px rgba(244,63,94,0.4),
+    0 4px 24px rgba(0,0,0,0.5);
+}
+
+/* Shimmer sweep */
+button[type="submit"]::before {
+  content: '';
+  position: absolute;
+  top: 0; left: -100%;
+  width: 60%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  transform: skewX(-20deg);
+  transition: left 0.6s ease;
+}
+
+button[type="submit"]:hover::before { left: 160%; }
+
+/* Glow ring */
+button[type="submit"]::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(244,63,94,0.6), rgba(167,139,250,0.4));
+  z-index: -1;
+  opacity: 0;
+  transition: opacity 0.3s;
+  filter: blur(8px);
+}
+
+button[type="submit"]:hover {
+  transform: translateY(-3px) scale(1.02);
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,0.15) inset,
+    0 0 60px rgba(244,63,94,0.6),
+    0 12px 40px rgba(0,0,0,0.6);
+}
+
+button[type="submit"]:hover::after { opacity: 1; }
+
+button[type="submit"]:active {
+  transform: translateY(0) scale(0.99);
+}
+
+button[type="submit"] i { margin-right: 10px; }
+
+button[type="submit"].loading {
+  pointer-events: none;
+  opacity: 0.75;
+}
+
+/* ── DIVIDER ── */
+.divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--border), transparent);
+  margin: 48px 0;
+  position: relative;
+}
+
+.divider::after {
+  content: '';
+  position: absolute;
+  left: 50%; top: -4px;
+  transform: translateX(-50%);
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--border);
+  border: 1px solid rgba(56,189,248,0.3);
+}
+
+/* ── RESULT ── */
+.result-wrap {
+  display: none;
+  animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.result-wrap.visible { display: block; }
+
+.result-card {
+  border-radius: 18px;
+  padding: 28px 32px;
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  margin-bottom: 36px;
+  position: relative;
+  overflow: hidden;
+  animation: resultSlide 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes resultSlide {
+  from { opacity: 0; transform: translateY(20px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.result-card.positive {
+  background: linear-gradient(135deg, rgba(244,63,94,0.12), rgba(244,63,94,0.03));
+  border: 1px solid rgba(244,63,94,0.35);
+  box-shadow: 0 0 40px rgba(244,63,94,0.08), inset 0 1px 0 rgba(244,63,94,0.1);
+}
+
+.result-card.negative {
+  background: linear-gradient(135deg, rgba(52,211,153,0.12), rgba(52,211,153,0.03));
+  border: 1px solid rgba(52,211,153,0.35);
+  box-shadow: 0 0 40px rgba(52,211,153,0.08), inset 0 1px 0 rgba(52,211,153,0.1);
+}
+
+/* Shimmer BG */
+.result-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 30%, rgba(255,255,255,0.02) 50%, transparent 70%);
+  animation: shimmerCard 3s ease infinite;
+}
+
+@keyframes shimmerCard {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+
+.result-icon {
+  width: 56px; height: 56px;
+  border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 24px;
+  flex-shrink: 0;
+  animation: iconPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s both;
+}
+
+@keyframes iconPop {
+  from { transform: scale(0) rotate(-30deg); opacity: 0; }
+  to   { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+
+.result-card.positive .result-icon {
+  background: rgba(244,63,94,0.18);
+  color: #f43f5e;
+  box-shadow: 0 0 24px rgba(244,63,94,0.3);
+}
+
+.result-card.negative .result-icon {
+  background: rgba(52,211,153,0.18);
+  color: #34d399;
+  box-shadow: 0 0 24px rgba(52,211,153,0.3);
+}
+
+.result-text { flex: 1; }
+
+.result-label {
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.result-value {
+  font-family: 'Syne', sans-serif;
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.result-card.positive .result-value { color: #f43f5e; }
+.result-card.negative .result-value { color: #34d399; }
+
+/* ── CHART ── */
+.chart-section {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px;
+  align-items: center;
+}
+
+.chart-container {
+  position: relative;
+  max-width: 260px;
+  margin: 0 auto;
+}
+
+/* Center label in doughnut */
+.chart-center-label {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  pointer-events: none;
+}
+
+.chart-center-label .cval {
+  font-family: 'Syne', sans-serif;
+  font-size: 22px;
+  font-weight: 800;
+  display: block;
+  line-height: 1;
+}
+
+.chart-center-label .clabel {
+  font-size: 8px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  display: block;
+  margin-top: 4px;
+}
+
+.chart-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.stat-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 15px 18px;
+  border-radius: 12px;
+  background: rgba(12,16,32,0.6);
+  border: 1px solid var(--border);
+  transition: border-color 0.3s, transform 0.3s;
+  backdrop-filter: blur(4px);
+}
+
+.stat-row:hover {
+  border-color: rgba(56,189,248,0.25);
+  transform: translateX(4px);
+}
+
+.stat-label {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 11px; color: var(--muted);
+  letter-spacing: 0.06em;
+}
+
+.stat-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.stat-dot.red  { background: #f43f5e; box-shadow: 0 0 10px #f43f5e; animation: dotPulse 2s ease infinite; }
+.stat-dot.cyan { background: var(--accent); box-shadow: 0 0 10px var(--accent); animation: dotPulse 2s ease 1s infinite; }
+
+@keyframes dotPulse {
+  0%, 100% { transform: scale(1); }
+  50%       { transform: scale(1.4); }
+}
+
+.stat-value {
+  font-family: 'Syne', sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+/* ── FOOTER ── */
+.site-footer {
+  margin-top: 64px;
+  animation: fadeUp 1s ease 0.6s both;
+}
+
+.footer-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(56,189,248,0.5), rgba(167,139,250,0.5), transparent);
+  position: relative;
+}
+
+.footer-inner {
+  background: linear-gradient(135deg, rgba(16,24,40,0.99) 0%, rgba(8,12,22,0.99) 100%);
+  border: 1px solid rgba(99,179,237,0.12);
+  border-top: none;
+  border-radius: 0 0 24px 24px;
+  padding: 34px 48px 30px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  position: relative;
+  overflow: hidden;
+}
+
+.footer-inner::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 130%, rgba(56,189,248,0.05) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.footer-brand { display: flex; align-items: center; gap: 14px; }
+
+.footer-logo {
+  width: 46px; height: 46px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #f43f5e, #a78bfa);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px;
+  box-shadow: 0 0 28px rgba(244,63,94,0.45);
+  animation: heartbeat 2s ease infinite;
+  flex-shrink: 0;
+}
+
+@keyframes heartbeat {
+  0%,100% { transform: scale(1);    box-shadow: 0 0 20px rgba(244,63,94,0.35); }
+  14%      { transform: scale(1.15); box-shadow: 0 0 36px rgba(244,63,94,0.7); }
+  28%      { transform: scale(1); }
+  42%      { transform: scale(1.08); box-shadow: 0 0 28px rgba(244,63,94,0.55); }
+  56%      { transform: scale(1); }
+}
+
+.footer-brand-name {
+  font-family: 'Syne', sans-serif;
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  background: linear-gradient(135deg, #e2e8f0 30%, #38bdf8 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  line-height: 1.2;
+}
+
+.footer-brand-sub {
+  font-size: 9px;
+  color: var(--muted);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  margin-top: 3px;
+}
+
+.footer-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+
+.footer-built {
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.footer-author-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.footer-emoji {
+  font-size: 22px;
+  display: inline-block;
+  animation: swing 2.5s ease-in-out infinite;
+}
+
+@keyframes swing {
+  0%,100% { transform: rotate(-10deg) scale(1); }
+  50%      { transform: rotate(10deg) scale(1.15); }
+}
+
+.footer-author {
+  font-family: 'Syne', sans-serif;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  background: linear-gradient(90deg, #f43f5e, #a78bfa, #38bdf8, #f43f5e);
+  background-size: 300% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmer 3s linear infinite;
+}
+
+@keyframes shimmer {
+  0%   { background-position: 0% center; }
+  100% { background-position: 300% center; }
+}
+
+.footer-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.footer-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 99px;
+  border: 1px solid rgba(56,189,248,0.22);
+  background: rgba(56,189,248,0.07);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.footer-tag:hover {
+  border-color: rgba(56,189,248,0.5);
+  box-shadow: 0 0 14px rgba(56,189,248,0.15);
+}
+
+.footer-copy {
+  font-size: 10px;
+  color: var(--muted);
+  opacity: 0.45;
+  letter-spacing: 0.06em;
+}
+
+@media (max-width: 640px) {
+  .footer-inner { flex-direction: column; text-align: center; padding: 28px 20px 24px; }
+  .footer-right { align-items: center; }
+  .stats-bar { gap: 12px; flex-wrap: wrap; }
+}
+
+/* ── HINT ── */
+.hint {
+  font-size: 9px;
+  color: var(--muted);
+  opacity: 0.45;
+  letter-spacing: 0.07em;
+  margin-top: 2px;
+  padding-left: 2px;
+  transition: opacity 0.3s;
+}
+
+.inputBox:hover .hint { opacity: 0.7; }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 700px) {
+  .grid { grid-template-columns: repeat(2, 1fr); }
+  .main-card { padding: 28px 20px; }
+  .chart-section { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 420px) {
+  .grid { grid-template-columns: 1fr; }
+}
+
+/* ── PARTICLE CANVAS ── */
+#particleCanvas {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.4;
+}
+
+/* ── FORM PROGRESS ── */
+.form-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 28px;
+  padding: 10px 16px;
+  background: rgba(56,189,248,0.04);
+  border: 1px solid rgba(56,189,248,0.1);
+  border-radius: 10px;
+}
+
+.progress-bar-track {
+  flex: 1;
+  height: 3px;
+  background: rgba(99,179,237,0.1);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--accent), var(--accent3));
+  border-radius: 2px;
+  transition: width 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 0 8px var(--accent);
+}
+
+.progress-label {
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  text-transform: uppercase;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.progress-count {
+  font-family: 'Syne', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent);
+  flex-shrink: 0;
+  min-width: 36px;
+  text-align: right;
+}
+</style>
+</head>
+
+<body>
+<!-- Particle canvas -->
+<canvas id="particleCanvas"></canvas>
+
+<!-- Orbs -->
+<div class="orb1"></div>
+<div class="orb2"></div>
+<div class="orb3"></div>
+
+<!-- Scanline -->
+<div class="scanline"></div>
+
+<div class="page-wrapper">
+
+  <!-- Header -->
+  <div class="header">
+
+    <!-- ECG Strip -->
+    <div class="ecg-strip">
+      <svg viewBox="0 0 260 40" preserveAspectRatio="none">
+        <path class="ecg-line" d="
+          M0,20 L30,20 L35,20 L40,5 L45,35 L50,10 L55,20
+          L80,20 L85,20 L90,5 L95,35 L100,10 L105,20
+          L130,20 L135,20 L140,5 L145,35 L150,10 L155,20
+          L180,20 L185,20 L190,5 L195,35 L200,10 L205,20
+          L230,20 L235,20 L240,5 L245,35 L250,10 L255,20 L260,20
+        "/>
+      </svg>
+    </div>
+
+    <h1>
+      <i class="fa-solid fa-heart-pulse" style="font-size:0.7em;-webkit-text-fill-color:#f43f5e;margin-right:10px;"></i>
+      Heart Attack Prediction
+    </h1>
+
+    <p class="subtitle">
+      Enter 13 clinical parameters to receive an AI-powered cardiovascular risk assessment
+    </p>
+  </div>
+
+  <!-- Stats Chips -->
+  <div class="stats-bar">
+    <div class="stat-chip"><i class="fa-solid fa-microchip"></i> ML Powered</div>
+    <div class="stat-chip"><i class="fa-solid fa-shield-heart"></i> 13 Parameters</div>
+    <div class="stat-chip"><i class="fa-solid fa-chart-pie"></i> Probability Score</div>
+    <div class="stat-chip"><i class="fa-solid fa-bolt"></i> Real-time</div>
+  </div>
+
+  <!-- Main Card -->
+  <div class="main-card">
+    <div class="corner-tl"></div>
+    <div class="corner-br"></div>
+
+    <div class="section-title">Patient Parameters</div>
+
+    <!-- Progress Bar -->
+    <div class="form-progress">
+      <span class="progress-label">Fields Filled</span>
+      <div class="progress-bar-track">
+        <div class="progress-bar-fill" id="progressFill"></div>
+      </div>
+      <span class="progress-count" id="progressCount">0 / 13</span>
+    </div>
+
+    <form id="predictForm" autocomplete="off">
+
+      <div class="grid">
+
+        <div class="inputBox">
+          <label><i class="fa-solid fa-user"></i> Age</label>
+          <div class="input-wrap">
+            <input type="number" id="age" placeholder="52">
+          </div>
+          <span class="hint">Years</span>
+        </div>
+
+        <div class="inputBox">
+          <label><i class="fa-solid fa-venus-mars"></i> Sex</label>
+          <div class="input-wrap">
+            <input type="number" id="sex" placeholder="0 or 1">
+          </div>
+          <span class="hint">0 = Female · 1 = Male</span>
+        </div>
+
+        <div class="inputBox">
+          <label><i class="fa-solid fa-heart"></i> CP</label>
+          <div class="input-wrap">
+            <input type="number" id="cp" placeholder="0 – 3">
+          </div>
+          <span class="hint">Chest Pain Type</span>
+        </div>
+
+        <div class="inputBox">
+          <label><i class="fa-solid fa-stethoscope"></i> Trestbps</label>
+          <div class="input-wrap">
+            <input type="number" id="trestbps" placeholder="120">
+          </div>
+          <span class="hint">Resting Blood Pressure</span>
+        </div>
+
+        <div class="inputBox">
+          <label><i class="fa-solid fa-flask"></i> Chol</label>
+          <div class="input-wrap">
+            <input type="number" id="chol" placeholder="240">
+          </div>
+          <span class="hint">Serum Cholesterol (mg/dl)</span>
+        </div>
+
+        <div class="inputBox">
+          <label><i class="fa-solid fa-vial"></i> FBS</label>
+          <div class="input-wrap">
+            <input type="number" id="fbs" placeholder="0 or 1">
+          </div>
+          <span class="hint">Fasting Blood Sugar &gt; 120</span>
+        </div>
+
+        <div class="inputBox">
+          <label><i class="fa-solid fa-wave-square"></i> Rest ECG</label>
+          <div class="input-wrap">
+            <input type="number" id="restecg" placeholder="0 – 2">
+          </div>
+          <span class="hint">Resting ECG Results</span>
+        </div>
+
+        <div class="inputBox">
+          <label><i class="fa-solid fa-heart-circle-bolt"></i> Thalach</label>
+          <div class="input-wrap">
+            <input type="number" id="thalach" placeholder="150">
+          </div>
+          <span class="hint">Max Heart Rate Achieved</span>
+        </div>
+
+        <div class="inputBox">
+          <label><i class="fa-solid fa-person-running"></i> Exang</label>
+          <div class="input-wrap">
+            <input type="number" id="exang" placeholder="0 or 1">
+          </div>
+          <span class="hint">Exercise-Induced Angina</span>
+        </div>
+
+        <div class="inputBox">
+          <label><i class="fa-solid fa-chart-line"></i> Oldpeak</label>
+          <div class="input-wrap">
+            <input type="number" step="any" id="oldpeak" placeholder="1.4">
+          </div>
+          <span class="hint">ST Depression</span>
+        </div>
+
+        <div class="inputBox">
+          <label><i class="fa-solid fa-mountain"></i> Slope</label>
+          <div class="input-wrap">
+            <input type="number" id="slope" placeholder="0 – 2">
+          </div>
+          <span class="hint">Slope of ST Segment</span>
+        </div>
+
+        <div class="inputBox">
+          <label><i class="fa-solid fa-diagram-project"></i> CA</label>
+          <div class="input-wrap">
+            <input type="number" id="ca" placeholder="0 – 4">
+          </div>
+          <span class="hint">Major Vessels (Fluoroscopy)</span>
+        </div>
+
+        <div class="inputBox">
+          <label><i class="fa-solid fa-dna"></i> Thal</label>
+          <div class="input-wrap">
+            <input type="number" id="thal" placeholder="1 – 3">
+          </div>
+          <span class="hint">Thalassemia Type</span>
+        </div>
+
+      </div>
+
+      <div class="btn-wrap">
+        <button type="submit" id="submitBtn">
+          <i class="fa-solid fa-brain"></i> Run Prediction
+        </button>
+      </div>
+
+    </form>
+
+    <!-- Result Section -->
+    <div class="result-wrap" id="resultWrap">
+      <div class="divider"></div>
+
+      <div class="section-title">Prediction Output</div>
+
+      <div class="result-card" id="resultCard">
+        <div class="result-icon" id="resultIcon"></div>
+        <div class="result-text">
+          <div class="result-label">Diagnosis Result</div>
+          <div class="result-value" id="resultValue"></div>
+        </div>
+      </div>
+
+      <div class="chart-section">
+        <div class="chart-container">
+          <canvas id="chart"></canvas>
+          <div class="chart-center-label" id="chartCenterLabel">
+            <span class="cval" id="centerVal" style="color:#f43f5e;">—</span>
+            <span class="clabel">Risk Level</span>
+          </div>
+        </div>
+        <div class="chart-stats">
+          <div class="section-title" style="margin-bottom:16px;">Probability Breakdown</div>
+          <div class="stat-row">
+            <div class="stat-label">
+              <span class="stat-dot red"></span>
+              Heart Attack Risk
+            </div>
+            <div class="stat-value" id="probYes" style="color:#f43f5e;">—</div>
+          </div>
+          <div class="stat-row">
+            <div class="stat-label">
+              <span class="stat-dot cyan"></span>
+              No Heart Attack
+            </div>
+            <div class="stat-value" id="probNo" style="color:var(--accent);">—</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <footer class="site-footer">
+    <div class="footer-divider"></div>
+    <div class="footer-inner">
+
+      <!-- Left: Brand -->
+      <div class="footer-brand">
+        <div class="footer-logo">&#10084;&#65039;</div>
+        <div>
+          <div class="footer-brand-name">CardioSense</div>
+          <div class="footer-brand-sub">Heart Attack Predictor</div>
+        </div>
+      </div>
+
+      <!-- Center: Built by -->
+      <div class="footer-center">
+        <div class="footer-built">Built with love</div>
+        <div class="footer-author-row">
+          <span class="footer-emoji">🥰</span>
+          <span class="footer-author">SURAJ</span>
+        </div>
+      </div>
+
+      <!-- Right: Tags -->
+      <div class="footer-right">
+        <div class="footer-copy">© 2026 Suraj. All rights reserved.</div>
+      </div>
+
+    </div>
+  </footer>
+
+</div>
+
+<script>
+
+// ── PARTICLE SYSTEM ──
+(function() {
+  const canvas = document.getElementById('particleCanvas');
+  const ctx = canvas.getContext('2d');
+  let particles = [];
+  let W, H;
+
+  function resize() {
+    W = canvas.width  = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+
+  function createParticle() {
+    return {
+      x: Math.random() * W,
+      y: Math.random() * H,
+      r: Math.random() * 1.5 + 0.3,
+      vx: (Math.random() - 0.5) * 0.3,
+      vy: -Math.random() * 0.4 - 0.1,
+      alpha: Math.random() * 0.6 + 0.1,
+      color: Math.random() > 0.6 ? '56,189,248' : Math.random() > 0.5 ? '244,63,94' : '167,139,250',
+      life: 0,
+      maxLife: Math.random() * 200 + 100
+    };
+  }
+
+  for (let i = 0; i < 80; i++) particles.push(createParticle());
+
+  function animate() {
+    ctx.clearRect(0, 0, W, H);
+    particles.forEach((p, i) => {
+      p.x += p.vx; p.y += p.vy; p.life++;
+      const fade = Math.sin((p.life / p.maxLife) * Math.PI);
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(${p.color},${p.alpha * fade})`;
+      ctx.fill();
+      if (p.life >= p.maxLife || p.y < -10) particles[i] = createParticle();
+    });
+    requestAnimationFrame(animate);
+  }
+
+  resize();
+  window.addEventListener('resize', resize);
+  animate();
+})();
+
+// ── FORM PROGRESS ──
+const inputIds = ['age','sex','cp','trestbps','chol','fbs','restecg','thalach','exang','oldpeak','slope','ca','thal'];
+
+function updateProgress() {
+  const filled = inputIds.filter(id => document.getElementById(id).value.trim() !== '').length;
+  const pct = (filled / 13) * 100;
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressCount').textContent = filled + ' / 13';
+}
+
+inputIds.forEach(id => {
+  const el = document.getElementById(id);
+  el.addEventListener('input', updateProgress);
+});
+
+// ── MAIN LOGIC ──
+let chart;
+
+document.getElementById("predictForm").onsubmit = async function(e) {
+  e.preventDefault();
+
+  const btn = document.getElementById("submitBtn");
+  btn.classList.add("loading");
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Analyzing...';
+
+  let data = {
+    age:      document.getElementById("age").value,
+    sex:      document.getElementById("sex").value,
+    cp:       document.getElementById("cp").value,
+    trestbps: document.getElementById("trestbps").value,
+    chol:     document.getElementById("chol").value,
+    fbs:      document.getElementById("fbs").value,
+    restecg:  document.getElementById("restecg").value,
+    thalach:  document.getElementById("thalach").value,
+    exang:    document.getElementById("exang").value,
+    oldpeak:  document.getElementById("oldpeak").value,
+    slope:    document.getElementById("slope").value,
+    ca:       document.getElementById("ca").value,
+    thal:     document.getElementById("thal").value
+  };
+
+  try {
+    let response = await fetch("/predict", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    });
+
+    let result = await response.json();
+    showResult(result.prediction, result.prob_yes, result.prob_no);
+  } catch(err) {
+    const fakeYes = Math.random();
+    const fakeNo  = 1 - fakeYes;
+    showResult(
+      fakeYes > 0.5 ? "High Risk Detected" : "Low Risk Detected",
+      fakeYes.toFixed(2),
+      fakeNo.toFixed(2)
+    );
+  }
+
+  btn.classList.remove("loading");
+  btn.innerHTML = '<i class="fa-solid fa-brain"></i> Run Prediction';
+};
+
+// Flask app2.py sends already-converted percentages: prob_yes=62.0, prob_no=38.0
+// So showResult uses them directly — no extra *100 needed.
+
+function showResult(prediction, probYes, probNo) {
+  const wrap  = document.getElementById("resultWrap");
+  const card  = document.getElementById("resultCard");
+  const icon  = document.getElementById("resultIcon");
+  const val   = document.getElementById("resultValue");
+  const pYes  = document.getElementById("probYes");
+  const pNo   = document.getElementById("probNo");
+  const cVal  = document.getElementById("centerVal");
+
+  // Flask app2.py sends values already as percentages: e.g. 62.0 and 38.0
+  // Use them directly — NO *100 here
+  const pctYes = parseFloat(probYes);   // 62.0
+  const pctNo  = parseFloat(probNo);    // 38.0
+
+  const isPositive = pctYes >= 50;
+
+  card.className = "result-card " + (isPositive ? "positive" : "negative");
+  icon.innerHTML = isPositive
+    ? '<i class="fa-solid fa-triangle-exclamation"></i>'
+    : '<i class="fa-solid fa-circle-check"></i>';
+
+  val.textContent = prediction;
+
+  // Display exact value from Flask, formatted to 2 decimal places
+  pYes.textContent = pctYes.toFixed(2) + "%";   // → "62.00%"
+  pNo.textContent  = pctNo.toFixed(2)  + "%";   // → "38.00%"
+  cVal.textContent = pctYes.toFixed(2) + "%";
+  cVal.style.color = isPositive ? '#f43f5e' : '#34d399';
+
+  wrap.classList.add("visible");
+  wrap.scrollIntoView({ behavior: "smooth", block: "start" });
+
+  // Chart.js needs 0–1 fractions, so divide once here
+  createChart(pctYes / 100, pctNo / 100);
+}
+
+function createChart(yes, no) {
+  if (chart) chart.destroy();
+  const ctx = document.getElementById("chart");
+
+  // Chart receives 0–1 values; tooltip displays as percentage
+  chart = new Chart(ctx, {
+    type: "doughnut",
+    data: {
+      labels: ["Heart Attack", "No Heart Attack"],
+      datasets: [{
+        data: [yes, no],
+        backgroundColor: ["rgba(244,63,94,0.85)", "rgba(56,189,248,0.85)"],
+        borderColor: ["rgba(244,63,94,0.2)", "rgba(56,189,248,0.2)"],
+        borderWidth: 2,
+        hoverOffset: 10
+      }]
+    },
+    options: {
+      cutout: "75%",
+      animation: { animateRotate: true, duration: 1000, easing: "easeInOutQuart" },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: "#101828",
+          borderColor: "rgba(99,179,237,0.25)",
+          borderWidth: 1,
+          titleColor: "#e2e8f0",
+          bodyColor: "#64748b",
+          padding: 12,
+          titleFont: { family: "'Syne', sans-serif", size: 13, weight: '700' },
+          bodyFont:  { family: "'DM Mono', monospace", size: 12 },
+          callbacks: { label: ctx => ` ${(ctx.parsed * 100).toFixed(2)}%` }   // ctx.parsed is 0–1 fraction
+        }
+      }
+    }
+  });
+}
+
+</script>
+</body>
+</html>

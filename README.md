@@ -57,6 +57,28 @@ Target variable:
 Heart attack risk (0 = No Risk, 1 = High Risk)
 
 ---
+# ❤️ Heart Attack Prediction System
+
+![Heart Attack Prediction Banner](preview of heart attack prediction.png)
+
+A machine learning based web application that predicts the risk of heart attack using patient health parameters such as age, cholesterol, blood pressure, and heart rate.
+
+## Code Preview 1
+![Code Preview 1](code preview 1.png)
+
+## Code Preview 2
+![Code Preview 2](code preview 2.png)
+
+## Code Preview 3
+![Code Preview 3](code preview 3.png)
+
+## Preview of Heart Prediction
+![Preview of Heart Prediction](preview of heart prediction.png)
+
+## Preview of Heart Attack Prediction
+![Preview of Heart Attack Prediction](preview of heart attack prediction.png)
+
+
 
 # Tools and Technologies
 

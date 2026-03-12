@@ -76,6 +76,8 @@ Chart.js
 
 All files inside main  heart_prediction  folder and HTML inside templates.
 
+structure
+```
 heart-attack-prediction/
 │
 ├── app.py
@@ -89,6 +91,7 @@ heart-attack-prediction/
 │
 ├── templates/
 │   └── index.html
+```
 
 ## How to Run the Project
 

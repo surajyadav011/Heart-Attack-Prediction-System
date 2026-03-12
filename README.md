@@ -95,7 +95,7 @@ heart-attack-prediction/
 
 ## How to Run the Project
 
-Make sure all required Python libraries are installed.
+Make sure all required Python libraries are installed and run all the code in the Jupyter Notebook files before executing the project.
 
 1. Go to the **heart_prediction** project folder.
 

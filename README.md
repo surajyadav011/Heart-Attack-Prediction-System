@@ -76,21 +76,23 @@ Chart.js
 
 All files inside main  heart_prediction  folder and HTML inside templates.
 
-#structure
-heart_prediction/
+heart-attack-prediction/
 │
 ├── app.py
 ├── app2.py
 │
 ├── Heart_attack_prediction.pkl
 │
-├── real_ml_project.ipynb
-├── APP.ipynb
+├── notebooks/
+│   ├── real_ml_project.ipynb
+│   └── APP.ipynb
 │
 ├── templates/
-│ └── index.html
+│   └── index.html
 
 ## How to Run the Project
+
+Make sure all required Python libraries are installed.
 
 1. Go to the **heart_prediction** project folder.
 

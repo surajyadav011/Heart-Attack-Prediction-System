@@ -1,0 +1,17 @@
+# requirements.txt
+
+# Web Framework
+Flask
+
+# Data Processing
+pandas
+numpy
+
+# Machine Learning
+scikit-learn
+
+# Serialization Utility
+pickle-mixin
+
+# Production Server (optional)
+gunicorn

@@ -114,7 +114,7 @@ heart-attack-prediction/
 │   └── index.html
 ```
 
-## How to Run the Project
+## setup of the Project
 
 Make sure all required Python libraries are installed and run all the code in the Jupyter Notebook files before executing the project.
 
@@ -132,13 +132,11 @@ Press **Enter** to open Command Prompt in that folder.
 
 python app2.py
 
-5.then type  python app2.py
-
-6. After running the command, you will see a link like this:
+5. After running the command, you will see a link like this:
 
 http://127.0.0.1:5000/
 
-7. Hold **Ctrl** and click the link, or copy it into your browser.
+6. Hold **Ctrl** and click the link, or copy it into your browser.
 
 The **Heart Attack Prediction System** will open in your browser.
 

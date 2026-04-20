@@ -61,21 +61,21 @@ Heart attack risk (0 = No Risk, 1 = High Risk)
 # ❤️ Heart Attack Prediction System
 
 ## Main Interface
-![Main Interface](preview-of-heart-prediction.png)
+![Main Interface](assets/preview-of-heart-prediction.png)
 
 ## Prediction Output Example
-![Prediction Output](preview-of-heart-attack-prediction-output.png)
+![Prediction Output](assets/preview-of-heart-attack-prediction-output.png)
 
 ## Code Preview
 
 ### Code Preview 1
-![Code Preview 1](code-preview-1.png)
+![Code Preview 1](assets/code-preview-1.png)
 
 ### Code Preview 2
-![Code Preview 2](code-preview-2.png)
+![Code Preview 2](assets/code-preview-2.png)
 
 ### Code Preview 3
-![Code Preview 3](code-preview-3.png)
+![Code Preview 3](assets/code-preview-3.png)
 
 
 

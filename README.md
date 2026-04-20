@@ -140,6 +140,14 @@ http://127.0.0.1:5000/
 
 The **Heart Attack Prediction System** will open in your browser.
 
+## 🚀 How to Use
+
+Follow these steps to set up and run the project on your local machine.
+
+### 1. Clone the Repository
+Open your terminal or command prompt and run:
+
+git clone [https://github.com/surajyadav011/Heart-Attack-Prediction-System.git](https://github.com/surajyadav011/Heart-Attack-Prediction-System.git)
 
 # Data Cleaning and Preparation
 
